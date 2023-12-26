@@ -9,6 +9,8 @@ import './Chat.css';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
+let userChatList = {};
+
 function Chat() {
     
     const location = useLocation();
@@ -38,16 +40,32 @@ function Chat() {
     const getUserbyUid = (uid) => {
         // Giữ nguyên phần này
     }
-
+    
     const fetchChatsOfCurrentUser = (cur_user) => {
+        
         try {
             if (cur_user) {
                 const chatRef = query(collection(db, 'users', cur_user.uid, "chats"));
 
-                const unsubscribe = onSnapshot(chatRef, (querySnapshot) => {
+                const unsubscribe = onSnapshot(chatRef, async (querySnapshot) => {
                     let chats_arr = [];
-                    querySnapshot.forEach((doc) => {
-                        chats_arr.push({ id: doc.id, ...doc.data(), avt: cur_user?.current_avatar.url });
+                    let id_arr = [];
+                    await querySnapshot.forEach((doc) => {
+                        if (!userChatList?.[doc.id]) {
+                            id_arr.push(doc.id);
+                        }
+                    });
+                    if (id_arr.length > 0) {
+                        const resProfile = await axios.post(`https://genzii-api.vhiep.com/api/user/profile`, {
+                            uid: id_arr,
+                            group: true
+                        },{ withCredentials: true });
+                        userChatList = {...userChatList, ...resProfile.data.data};
+                    }
+                    
+                    console.log(userChatList);
+                    querySnapshot.forEach(async (doc) => {
+                        chats_arr.push({ id: doc.id, ...doc.data(), avt: userChatList?.[doc.id]?.current_avatar.url });
                     });
 
                     chats_arr.sort((a, b) => b.timestamp - a.timestamp);
